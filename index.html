@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Vuelo de Drones - ENAIRE</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f1419;
+            color: #e0e6ed;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Mapa */
+        #map {
+            flex: 1;
+            z-index: 1;
+        }
+
+        /* Panel lateral */
+        .sidebar {
+            width: 380px;
+            background: linear-gradient(180deg, #1a1f2e 0%, #0f1419 100%);
+            border-left: 1px solid #2a2f3e;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: -2px 0 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #2a2f3e;
+            background: rgba(28, 37, 59, 0.6);
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #4a9eff, #7c63ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a9eff, #357abd);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(74, 158, 255, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #d63031);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e6ed;
+            border: 1px solid #2a2f3e;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Lista de waypoints */
+        .waypoints-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .waypoints-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .waypoints-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .waypoints-list::-webkit-scrollbar-thumb {
+            background: rgba(74, 158, 255, 0.4);
+            border-radius: 3px;
+        }
+
+        .waypoint-item {
+            background: rgba(42, 47, 62, 0.4);
+            border: 1px solid #2a2f3e;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .waypoint-item:hover {
+            background: rgba(42, 47, 62, 0.8);
+            border-color: #4a9eff;
+        }
+
+        .waypoint-item.active {
+            background: rgba(74, 158, 255, 0.2);
+            border-color: #4a9eff;
+            box-shadow: 0 0 12px rgba(74, 158, 255, 0.2);
+        }
+
+        .waypoint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .waypoint-name {
+            font-weight: 600;
+            color: #4a9eff;
+        }
+
+        .waypoint-type {
+            font-size: 11px;
+            background: rgba(74, 158, 255, 0.2);
+            color: #7fb3ff;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .waypoint-coords {
+            font-size: 12px;
+            color: #a0a6b5;
+            margin-bottom: 6px;
+        }
+
+        .waypoint-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .waypoint-actions button {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, #1a1f2e 0%, #0f1419 100%);
+            border: 1px solid #2a2f3e;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            color: #e0e6ed;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #a0a6b5;
+            margin-bottom: 6px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(42, 47, 62, 0.6);
+            border: 1px solid #2a2f3e;
+            border-radius: 6px;
+            color: #e0e6ed;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #4a9eff;
+            background: rgba(42, 47, 62, 0.9);
+            box-shadow: 0 0 8px rgba(74, 158, 255, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        /* Estilos del mapa */
+        .leaflet-control-attribution {
+            background: rgba(0, 0, 0, 0.5) !important;
+            color: #a0a6b5 !important;
+        }
+
+        .leaflet-control-zoom {
+            border: 1px solid #2a2f3e !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .leaflet-control-zoom a {
+            background: rgba(26, 31, 46, 0.9) !important;
+            color: #e0e6ed !important;
+            border-bottom: 1px solid #2a2f3e !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: rgba(74, 158, 255, 0.2) !important;
+        }
+
+        /* Popup personalizado */
+        .leaflet-popup-content-wrapper {
+            background: rgba(26, 31, 46, 0.95) !important;
+            border: 1px solid #2a2f3e !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .leaflet-popup-content {
+            color: #e0e6ed !important;
+            font-size: 13px !important;
+            margin: 0 !important;
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(26, 31, 46, 0.95) !important;
+            border-left-color: #2a2f3e !important;
+            border-right-color: #2a2f3e !important;
+        }
+
+        /* Marcadores personalizados */
+        .marker-icon-custom {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            border: 2px solid white;
+        }
+
+        .marker-start {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .marker-waypoint {
+            background: linear-gradient(135deg, #4a9eff, #357abd);
+        }
+
+        .marker-hazard {
+            background: linear-gradient(135deg, #ff6b6b, #d63031);
+        }
+
+        .marker-poi {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+        }
+
+        .marker-landing {
+            background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+        }
+
+        .marker-inspection {
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+        }
+
+        .polyline-route {
+            stroke: true;
+            color: #4a9eff;
+            weight: 2;
+            opacity: 0.6;
+            dashArray: '5, 5';
+        }
+
+        .stats-bar {
+            padding: 12px;
+            border-top: 1px solid #2a2f3e;
+            background: rgba(28, 37, 59, 0.6);
+            font-size: 12px;
+            color: #a0a6b5;
+        }
+
+        .stat {
+            display: inline-block;
+            margin-right: 16px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #4a9eff;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                max-height: 50vh;
+                border-left: none;
+                border-top: 1px solid #2a2f3e;
+                z-index: 500;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="map"></div>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>✈️ Waypoints de Vuelo</h2>
+                <div class="button-group">
+                    <button class="btn-primary" id="addWaypointBtn">➕ Agregar</button>
+                    <button class="btn-secondary" id="showRouteBtn">🛤️ Ruta</button>
+                    <button class="btn-danger" id="clearAllBtn">🗑️ Limpiar</button>
+                    <button class="btn-secondary" id="exportBtn">💾 Guardar</button>
+                </div>
+            </div>
+            <div class="waypoints-list" id="waypointsList">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
+                    </svg>
+                    <p>Haz clic en el mapa o usa "Agregar" para crear waypoints</p>
+                </div>
+            </div>
+            <div class="stats-bar">
+                <div class="stat">Total: <span class="stat-value" id="waypointCount">0</span></div>
+                <div class="stat">Distancia: <span class="stat-value" id="totalDistance">0</span> km</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para agregar/editar waypoint -->
+    <div class="modal" id="waypointModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Waypoint</h3>
+            </div>
+            <form id="waypointForm">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="waypointNameInput" required placeholder="Ej: Inspección Zona A">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud *</label>
+                        <input type="number" id="waypointLatInput" step="0.00001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Longitud *</label>
+                        <input type="number" id="waypointLonInput" step="0.00001" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Altura (m)</label>
+                        <input type="number" id="waypointAltitudeInput" placeholder="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select id="waypointTypeInput">
+                            <option value="waypoint">Punto de Ruta</option>
+                            <option value="start">Inicio</option>
+                            <option value="landing">Aterrizaje</option>
+                            <option value="poi">Punto de Interés</option>
+                            <option value="hazard">Zona de Riesgo</option>
+                            <option value="inspection">Inspección</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Información / Notas</label>
+                    <textarea id="waypointNotesInput" placeholder="Agrega detalles importantes: restricciones, observaciones, coordenadas adicionales..."></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="permanentCheckbox">
+                        <label for="permanentCheckbox" style="margin: 0; cursor: pointer;">Marcar como permanente</label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        // Configuración del mapa
+        const map = L.map('map', {
+            center: [40.4168, -3.7038], // Madrid
+            zoom: 12,
+            zoomControl: true
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Estado de la aplicación
+        const appState = {
+            waypoints: [],
+            selectedWaypointId: null,
+            markers: {},
+            route: null,
+            addingMode: false
+        };
+
+        // Cargar waypoints almacenados
+        function loadWaypoints() {
+            const stored = localStorage.getItem('dronWaypoints');
+            if (stored) {
+                appState.waypoints = JSON.parse(stored);
+                appState.waypoints.forEach(wp => renderWaypoint(wp));
+            }
+        }
+
+        // Guardar waypoints en localStorage
+        function saveWaypoints() {
+            localStorage.setItem('dronWaypoints', JSON.stringify(appState.waypoints));
+        }
+
+        // Crear ID único
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Obtener ícono personalizado
+        function getMarkerIcon(type, index) {
+            const iconClass = {
+                'start': 'marker-start',
+                'waypoint': 'marker-waypoint',
+                'hazard': 'marker-hazard',
+                'poi': 'marker-poi',
+                'landing': 'marker-landing',
+                'inspection': 'marker-inspection'
+            }[type] || 'marker-waypoint';
+
+            const iconHtml = `<div class="marker-icon-custom ${iconClass}">${index}</div>`;
+
+            return L.divIcon({
+                html: iconHtml,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -16],
+                className: 'custom-marker'
+            });
+        }
+
+        // Renderizar waypoint en el mapa
+        function renderWaypoint(waypoint) {
+            if (appState.markers[waypoint.id]) {
+                map.removeLayer(appState.markers[waypoint.id]);
+            }
+
+            const index = appState.waypoints.indexOf(waypoint) + 1;
+            const marker = L.marker([waypoint.lat, waypoint.lon], {
+                icon: getMarkerIcon(waypoint.type, index)
+            }).addTo(map);
+
+            const popupContent = `
+                <strong>${waypoint.name}</strong><br/>
+                <small>Lat: ${waypoint.lat.toFixed(5)}</small><br/>
+                <small>Lon: ${waypoint.lon.toFixed(5)}</small><br/>
+                <small>Alt: ${waypoint.altitude}m</small><br/>
+                ${waypoint.notes ? `<p style="margin-top: 8px; font-size: 12px;">${waypoint.notes.replace(/\n/g, '<br>')}</p>` : ''}
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.on('click', () => selectWaypoint(waypoint.id));
+
+            appState.markers[waypoint.id] = marker;
+        }
+
+        // Actualizar lista de waypoints
+        function updateWaypointsList() {
+            const list = document.getElementById('waypointsList');
+            if (appState.waypoints.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
+                        </svg>
+                        <p>Haz clic en el mapa o usa "Agregar" para crear waypoints</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = appState.waypoints.map((wp, idx) => `
+                <div class="waypoint-item ${appState.selectedWaypointId === wp.id ? 'active' : ''}" onclick="selectWaypoint('${wp.id}')">
+                    <div class="waypoint-header">
+                        <span class="waypoint-name">#${idx + 1} ${wp.name}</span>
+                        ${wp.permanent ? '📌' : ''}
+                        <span class="waypoint-type">${{
+                            'start': 'Inicio',
+                            'waypoint': 'Ruta',
+                            'hazard': 'Riesgo',
+                            'poi': 'POI',
+                            'landing': 'Aterrizaje',
+                            'inspection': 'Inspección'
+                        }[wp.type] || wp.type}</span>
+                    </div>
+                    <div class="waypoint-coords">${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)} • ${wp.altitude}m</div>
+                    ${wp.notes ? `<div class="waypoint-coords" style="color: #7fb3ff; font-size: 11px; margin-bottom: 10px;">${wp.notes.substring(0, 50)}${wp.notes.length > 50 ? '...' : ''}</div>` : ''}
+                    <div class="waypoint-actions">
+                        <button class="btn-secondary btn-small" onclick="editWaypoint('${wp.id}')">✏️ Editar</button>
+                        <button class="btn-danger btn-small" onclick="deleteWaypoint('${wp.id}')">🗑️ Borrar</button>
+                    </div>
+                </div>
+            `).join('');
+
+            updateStats();
+            drawRoute();
+        }
+
+        // Seleccionar waypoint
+        function selectWaypoint(id) {
+            appState.selectedWaypointId = id;
+            updateWaypointsList();
+            const wp = appState.waypoints.find(w => w.id === id);
+            if (wp) {
+                map.setView([wp.lat, wp.lon], 15);
+                appState.markers[id].openPopup();
+            }
+        }
+
+        // Abrir modal para agregar waypoint
+        function openAddModal(lat = null, lon = null) {
+            const modal = document.getElementById('waypointModal');
+            document.getElementById('modalTitle').textContent = 'Nuevo Waypoint';
+            document.getElementById('waypointForm').reset();
+            document.getElementById('waypointLatInput').value = lat || '';
+            document.getElementById('waypointLonInput').value = lon || '';
+            document.getElementById('waypointAltitudeInput').value = '0';
+            document.getElementById('permanentCheckbox').checked = false;
+            modal.classList.add('active');
+        }
+
+        // Editar waypoint
+        function editWaypoint(id) {
+            const wp = appState.waypoints.find(w => w.id === id);
+            if (!wp) return;
+
+            const modal = document.getElementById('waypointModal');
+            document.getElementById('modalTitle').textContent = 'Editar Waypoint';
+            document.getElementById('waypointNameInput').value = wp.name;
+            document.getElementById('waypointLatInput').value = wp.lat;
+            document.getElementById('waypointLonInput').value = wp.lon;
+            document.getElementById('waypointAltitudeInput').value = wp.altitude;
+            document.getElementById('waypointTypeInput').value = wp.type;
+            document.getElementById('waypointNotesInput').value = wp.notes || '';
+            document.getElementById('permanentCheckbox').checked = wp.permanent || false;
+
+            modal.dataset.editingId = id;
+            modal.classList.add('active');
+        }
+
+        // Guardar waypoint
+        document.getElementById('waypointForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const modal = document.getElementById('waypointModal');
+            const editingId = modal.dataset.editingId;
+
+            const waypoint = {
+                id: editingId || generateId(),
+                name: document.getElementById('waypointNameInput').value,
+                lat: parseFloat(document.getElementById('waypointLatInput').value),
+                lon: parseFloat(document.getElementById('waypointLonInput').value),
+                altitude: parseInt(document.getElementById('waypointAltitudeInput').value) || 0,
+                type: document.getElementById('waypointTypeInput').value,
+                notes: document.getElementById('waypointNotesInput').value,
+                permanent: document.getElementById('permanentCheckbox').checked
+            };
+
+            if (editingId) {
+                const idx = appState.waypoints.findIndex(w => w.id === editingId);
+                appState.waypoints[idx] = waypoint;
+                appState.selectedWaypointId = editingId;
+            } else {
+                appState.waypoints.push(waypoint);
+                appState.selectedWaypointId = waypoint.id;
+            }
+
+            saveWaypoints();
+            renderWaypoint(waypoint);
+            updateWaypointsList();
+            closeModal();
+        });
+
+        // Borrar waypoint
+        function deleteWaypoint(id) {
+            if (confirm('¿Estás seguro de que quieres borrar este waypoint?')) {
+                if (appState.markers[id]) {
+                    map.removeLayer(appState.markers[id]);
+                    delete appState.markers[id];
+                }
+                appState.waypoints = appState.waypoints.filter(w => w.id !== id);
+                appState.selectedWaypointId = null;
+                saveWaypoints();
+                updateWaypointsList();
+            }
+        }
+
+        // Cerrar modal
+        function closeModal() {
+            const modal = document.getElementById('waypointModal');
+            modal.classList.remove('active');
+            delete modal.dataset.editingId;
+        }
+
+        // Dibujar ruta entre waypoints
+        function drawRoute() {
+            if (appState.route) {
+                map.removeLayer(appState.route);
+            }
+
+            if (appState.waypoints.length < 2) return;
+
+            const coords = appState.waypoints.map(wp => [wp.lat, wp.lon]);
+            appState.route = L.polyline(coords, {
+                color: '#4a9eff',
+                weight: 2,
+                opacity: 0.6,
+                dashArray: '5, 5'
+            }).addTo(map);
+        }
+
+        // Actualizar estadísticas
+        function updateStats() {
+            document.getElementById('waypointCount').textContent = appState.waypoints.length;
+
+            if (appState.waypoints.length < 2) {
+                document.getElementById('totalDistance').textContent = '0';
+                return;
+            }
+
+            let totalDist = 0;
+            for (let i = 0; i < appState.waypoints.length - 1; i++) {
+                const from = turf.point([appState.waypoints[i].lon, appState.waypoints[i].lat]);
+                const to = turf.point([appState.waypoints[i + 1].lon, appState.waypoints[i + 1].lat]);
+                totalDist += turf.distance(from, to, { units: 'kilometers' });
+            }
+
+            document.getElementById('totalDistance').textContent = totalDist.toFixed(2);
+        }
+
+        // Eventos de botones
+        document.getElementById('addWaypointBtn').addEventListener('click', () => openAddModal());
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+
+        document.getElementById('showRouteBtn').addEventListener('click', () => {
+            if (appState.waypoints.length >= 2) {
+                const bounds = L.latLngBounds(appState.waypoints.map(wp => [wp.lat, wp.lon]));
+                map.fitBounds(bounds, { padding: [100, 100] });
+            }
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (confirm('¿Borrar todos los waypoints? (Los permanentes se conservarán)')) {
+                appState.waypoints = appState.waypoints.filter(wp => wp.permanent);
+                Object.keys(appState.markers).forEach(id => {
+                    map.removeLayer(appState.markers[id]);
+                });
+                appState.markers = {};
+                appState.waypoints.forEach(wp => renderWaypoint(wp));
+                appState.selectedWaypointId = null;
+                saveWaypoints();
+                updateWaypointsList();
+            }
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const data = {
+                timestamp: new Date().toISOString(),
+                waypoints: appState.waypoints
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `waypoints-${Date.now()}.json`;
+            a.click();
+        });
+
+        // Click en el mapa para agregar waypoint
+        map.on('click', (e) => {
+            openAddModal(e.latlng.lat.toFixed(5), e.latlng.lng.toFixed(5));
+        });
+
+        // Inicializar
+        loadWaypoints();
+        if (appState.waypoints.length > 0) {
+            updateWaypointsList();
+        }
+    </script>
+</body>
+</html>
