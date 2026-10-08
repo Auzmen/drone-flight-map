@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Vuelo de Drones - ENAIRE</title>
+    <title>ENAIRE - Centro de Control de Drones</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <style>
         * {
             margin: 0;
@@ -14,7 +15,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0f1419;
+            background: #0a0e17;
             color: #e0e6ed;
             height: 100vh;
             overflow: hidden;
@@ -25,6 +26,33 @@
             height: 100vh;
         }
 
+        /* Header */
+        .header {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(10, 14, 23, 0.95);
+            border: 1px solid #1f2937;
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 400;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .header h1 {
+            font-size: 16px;
+            background: linear-gradient(135deg, #4a9eff, #7c63ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
         /* Mapa */
         #map {
             flex: 1;
@@ -33,44 +61,65 @@
 
         /* Panel lateral */
         .sidebar {
-            width: 380px;
-            background: linear-gradient(180deg, #1a1f2e 0%, #0f1419 100%);
-            border-left: 1px solid #2a2f3e;
+            width: 420px;
+            background: linear-gradient(180deg, #0f1420 0%, #0a0e17 100%);
+            border-left: 1px solid #1f2937;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: -2px 0 16px rgba(0, 0, 0, 0.5);
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6);
         }
 
         .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #2a2f3e;
-            background: rgba(28, 37, 59, 0.6);
+            padding: 16px;
+            border-bottom: 1px solid #1f2937;
+            background: rgba(15, 20, 32, 0.8);
+            backdrop-filter: blur(10px);
         }
 
         .sidebar-header h2 {
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 12px;
-            background: linear-gradient(135deg, #4a9eff, #7c63ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e0e6ed;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4a9eff, #357abd);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: auto;
         }
 
         .button-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+        }
+
+        .button-group.full {
+            grid-template-columns: 1fr;
         }
 
         button {
-            padding: 10px 16px;
+            padding: 10px 14px;
             border: none;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 13px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .btn-primary {
@@ -83,70 +132,106 @@
             box-shadow: 0 8px 16px rgba(74, 158, 255, 0.3);
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #ff6b6b, #d63031);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(255, 107, 107, 0.3);
-        }
-
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: #e0e6ed;
-            border: 1px solid #2a2f3e;
+            border: 1px solid #1f2937;
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #4a9eff;
         }
 
-        .btn-small {
-            padding: 6px 12px;
+        .btn-danger {
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 107, 107, 0.2);
+            box-shadow: 0 8px 16px rgba(255, 107, 107, 0.2);
+        }
+
+        .btn-success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+
+        .btn-success:hover {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        /* Tabs */
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #1f2937;
+            background: rgba(15, 20, 32, 0.5);
+            gap: 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #6b7280;
+            cursor: pointer;
             font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
 
-        /* Lista de waypoints */
-        .waypoints-list {
+        .tab-btn.active {
+            color: #4a9eff;
+            border-bottom-color: #4a9eff;
+        }
+
+        .tab-content {
+            display: none;
             flex: 1;
             overflow-y: auto;
             padding: 12px;
         }
 
-        .waypoints-list::-webkit-scrollbar {
-            width: 6px;
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
         }
 
-        .waypoints-list::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        .waypoints-list::-webkit-scrollbar-thumb {
-            background: rgba(74, 158, 255, 0.4);
-            border-radius: 3px;
+        /* Lista de waypoints */
+        .waypoints-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .waypoint-item {
-            background: rgba(42, 47, 62, 0.4);
-            border: 1px solid #2a2f3e;
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid #1f2937;
             border-radius: 8px;
             padding: 12px;
-            margin-bottom: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .waypoint-item:hover {
-            background: rgba(42, 47, 62, 0.8);
+            background: rgba(31, 41, 55, 0.8);
             border-color: #4a9eff;
         }
 
         .waypoint-item.active {
-            background: rgba(74, 158, 255, 0.2);
+            background: rgba(74, 158, 255, 0.15);
             border-color: #4a9eff;
             box-shadow: 0 0 12px rgba(74, 158, 255, 0.2);
+        }
+
+        .waypoint-item.dragging {
+            opacity: 0.5;
         }
 
         .waypoint-header {
@@ -156,36 +241,139 @@
             margin-bottom: 8px;
         }
 
+        .waypoint-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a9eff, #357abd);
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
         .waypoint-name {
             font-weight: 600;
-            color: #4a9eff;
+            color: #e0e6ed;
+            flex: 1;
+            margin-left: 10px;
         }
 
-        .waypoint-type {
-            font-size: 11px;
-            background: rgba(74, 158, 255, 0.2);
-            color: #7fb3ff;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-
-        .waypoint-coords {
-            font-size: 12px;
-            color: #a0a6b5;
-            margin-bottom: 6px;
-        }
-
-        .waypoint-actions {
+        .waypoint-badges {
             display: flex;
             gap: 6px;
         }
 
+        .badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(74, 158, 255, 0.2);
+            color: #7fb3ff;
+        }
+
+        .badge.permanent {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .waypoint-coords {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 6px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .waypoint-notes {
+            font-size: 11px;
+            color: #7fb3ff;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(74, 158, 255, 0.08);
+            border-radius: 4px;
+            max-height: 50px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .waypoint-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
         .waypoint-actions button {
-            flex: 1;
             padding: 6px 10px;
             font-size: 11px;
         }
 
+        /* Panel de ruta */
+        .route-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .route-stat {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid #1f2937;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .route-stat-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .route-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4a9eff, #7c63ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .route-stat-unit {
+            font-size: 12px;
+            color: #6b7280;
+            margin-left: 4px;
+        }
+
+        .altitude-profile {
+            margin-top: 12px;
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid #1f2937;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .altitude-profile h4 {
+            font-size: 12px;
+            color: #e0e6ed;
+            margin-bottom: 10px;
+        }
+
+        .altitude-chart {
+            height: 100px;
+            background: linear-gradient(to top, rgba(74, 158, 255, 0.1), transparent);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #1f2937;
+        }
+
+        .altitude-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Empty state */
         .empty-state {
             text-align: center;
             color: #6b7280;
@@ -194,7 +382,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100%;
+            flex: 1;
         }
 
         .empty-state svg {
@@ -209,10 +397,11 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(4px);
         }
 
         .modal.active {
@@ -220,15 +409,15 @@
         }
 
         .modal-content {
-            background: linear-gradient(180deg, #1a1f2e 0%, #0f1419 100%);
-            border: 1px solid #2a2f3e;
+            background: linear-gradient(180deg, #0f1420 0%, #0a0e17 100%);
+            border: 1px solid #1f2937;
             border-radius: 12px;
             padding: 24px;
             width: 90%;
-            max-width: 500px;
+            max-width: 550px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
         }
 
         .modal-header {
@@ -246,28 +435,28 @@
 
         .form-group label {
             display: block;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            color: #a0a6b5;
+            color: #6b7280;
             margin-bottom: 6px;
         }
 
         input, textarea, select {
             width: 100%;
             padding: 10px 12px;
-            background: rgba(42, 47, 62, 0.6);
-            border: 1px solid #2a2f3e;
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid #1f2937;
             border-radius: 6px;
             color: #e0e6ed;
             font-family: inherit;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.3s ease;
         }
 
         input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #4a9eff;
-            background: rgba(42, 47, 62, 0.9);
+            background: rgba(31, 41, 55, 0.9);
             box-shadow: 0 0 8px rgba(74, 158, 255, 0.2);
         }
 
@@ -275,7 +464,6 @@
             resize: vertical;
             min-height: 80px;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
         }
 
         .form-row {
@@ -302,51 +490,94 @@
             margin-top: 20px;
         }
 
+        /* Import/Export */
+        .import-export-box {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px dashed #1f2937;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .import-export-box input[type="file"] {
+            display: none;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            padding: 12px;
+            border-top: 1px solid #1f2937;
+            background: rgba(15, 20, 32, 0.8);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: #4a9eff;
+        }
+
         /* Estilos del mapa */
         .leaflet-control-attribution {
             background: rgba(0, 0, 0, 0.5) !important;
-            color: #a0a6b5 !important;
+            color: #6b7280 !important;
         }
 
         .leaflet-control-zoom {
-            border: 1px solid #2a2f3e !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid #1f2937 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
         }
 
         .leaflet-control-zoom a {
-            background: rgba(26, 31, 46, 0.9) !important;
+            background: rgba(10, 14, 23, 0.95) !important;
             color: #e0e6ed !important;
-            border-bottom: 1px solid #2a2f3e !important;
+            border-bottom: 1px solid #1f2937 !important;
+            font-weight: 700 !important;
         }
 
         .leaflet-control-zoom a:hover {
             background: rgba(74, 158, 255, 0.2) !important;
         }
 
+        .leaflet-control-zoom a:last-child {
+            border-bottom: none !important;
+        }
+
         /* Popup personalizado */
         .leaflet-popup-content-wrapper {
-            background: rgba(26, 31, 46, 0.95) !important;
-            border: 1px solid #2a2f3e !important;
+            background: rgba(10, 14, 23, 0.98) !important;
+            border: 1px solid #1f2937 !important;
             border-radius: 8px !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
         }
 
         .leaflet-popup-content {
             color: #e0e6ed !important;
-            font-size: 13px !important;
+            font-size: 12px !important;
             margin: 0 !important;
         }
 
         .leaflet-popup-tip {
-            background: rgba(26, 31, 46, 0.95) !important;
-            border-left-color: #2a2f3e !important;
-            border-right-color: #2a2f3e !important;
+            background: rgba(10, 14, 23, 0.98) !important;
+            border-left-color: #1f2937 !important;
+            border-right-color: #1f2937 !important;
         }
 
         /* Marcadores personalizados */
         .marker-icon-custom {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -354,8 +585,22 @@
             font-weight: bold;
             color: white;
             font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-            border: 2px solid white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            border: 3px solid white;
+            position: relative;
+        }
+
+        .marker-icon-custom::after {
+            content: '✊';
+            position: absolute;
+            font-size: 20px;
+            cursor: grab;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .marker-icon-custom:hover::after {
+            opacity: 1;
         }
 
         .marker-start {
@@ -382,30 +627,36 @@
             background: linear-gradient(135deg, #00bcd4, #0097a7);
         }
 
+        .marker-cargo {
+            background: linear-gradient(135deg, #795548, #5d4037);
+        }
+
         .polyline-route {
             stroke: true;
             color: #4a9eff;
-            weight: 2;
-            opacity: 0.6;
-            dashArray: '5, 5';
+            weight: 3;
+            opacity: 0.7;
         }
 
-        .stats-bar {
-            padding: 12px;
-            border-top: 1px solid #2a2f3e;
-            background: rgba(28, 37, 59, 0.6);
-            font-size: 12px;
-            color: #a0a6b5;
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(74, 158, 255, 0.2);
+            border-top: 3px solid #4a9eff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
         }
 
-        .stat {
-            display: inline-block;
-            margin-right: 16px;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .stat-value {
-            font-weight: 600;
-            color: #4a9eff;
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 380px;
+            }
         }
 
         @media (max-width: 768px) {
@@ -418,8 +669,14 @@
                 right: 0;
                 max-height: 50vh;
                 border-left: none;
-                border-top: 1px solid #2a2f3e;
+                border-top: 1px solid #1f2937;
                 z-index: 500;
+            }
+
+            .header {
+                top: auto;
+                bottom: 12px;
+                left: 12px;
             }
 
             .button-group {
@@ -430,28 +687,102 @@
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1>🛸 ENAIRE - Control de Drones</h1>
+            <p>Centro de Operaciones Aéreo</p>
+        </div>
+
         <div id="map"></div>
+
         <div class="sidebar">
             <div class="sidebar-header">
-                <h2>✈️ Waypoints de Vuelo</h2>
+                <h2>
+                    ✈️ Planificador de Vuelo
+                    <span class="mode-badge">OPERADOR</span>
+                </h2>
                 <div class="button-group">
-                    <button class="btn-primary" id="addWaypointBtn">➕ Agregar</button>
-                    <button class="btn-secondary" id="showRouteBtn">🛤️ Ruta</button>
-                    <button class="btn-danger" id="clearAllBtn">🗑️ Limpiar</button>
-                    <button class="btn-secondary" id="exportBtn">💾 Guardar</button>
+                    <button class="btn-primary" id="addWaypointBtn">➕ Nuevo</button>
+                    <button class="btn-secondary" id="importBtn">📥 Importar</button>
+                </div>
+                <div class="button-group">
+                    <button class="btn-secondary" id="exportBtn">💾 Exportar JSON</button>
+                    <button class="btn-secondary" id="exportCsvBtn">📊 Exportar CSV</button>
+                </div>
+                <div class="button-group full">
+                    <button class="btn-danger" id="clearAllBtn">🗑️ Limpiar Todo</button>
                 </div>
             </div>
-            <div class="waypoints-list" id="waypointsList">
-                <div class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
-                    </svg>
-                    <p>Haz clic en el mapa o usa "Agregar" para crear waypoints</p>
+
+            <!-- Tabs -->
+            <div class="tab-container">
+                <button class="tab-btn active" data-tab="waypoints">Waypoints</button>
+                <button class="tab-btn" data-tab="route">Ruta</button>
+            </div>
+
+            <!-- Tab: Waypoints -->
+            <div class="tab-content active" id="tab-waypoints">
+                <div class="waypoints-list" id="waypointsList">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
+                        </svg>
+                        <p>Haz clic en el mapa para agregar waypoints</p>
+                    </div>
                 </div>
             </div>
+
+            <!-- Tab: Ruta -->
+            <div class="tab-content" id="tab-route">
+                <div class="route-panel">
+                    <div class="route-stat">
+                        <div class="route-stat-label">Distancia Total</div>
+                        <div>
+                            <span class="route-stat-value" id="totalDistance">0</span>
+                            <span class="route-stat-unit">km</span>
+                        </div>
+                    </div>
+
+                    <div class="route-stat">
+                        <div class="route-stat-label">Waypoints</div>
+                        <div>
+                            <span class="route-stat-value" id="waypointCount">0</span>
+                        </div>
+                    </div>
+
+                    <div class="route-stat">
+                        <div class="route-stat-label">Altitud Promedio</div>
+                        <div>
+                            <span class="route-stat-value" id="avgAltitude">0</span>
+                            <span class="route-stat-unit">m</span>
+                        </div>
+                    </div>
+
+                    <div class="route-stat">
+                        <div class="route-stat-label">Altitud Máxima</div>
+                        <div>
+                            <span class="route-stat-value" id="maxAltitude">0</span>
+                            <span class="route-stat-unit">m</span>
+                        </div>
+                    </div>
+
+                    <div class="altitude-profile">
+                        <h4>Perfil de Altitud</h4>
+                        <div class="altitude-chart" id="altitudeChart">
+                            <svg id="altitudeSvg"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="stats-bar">
-                <div class="stat">Total: <span class="stat-value" id="waypointCount">0</span></div>
-                <div class="stat">Distancia: <span class="stat-value" id="totalDistance">0</span> km</div>
+                <div class="stat">
+                    <span>Permanentes:</span>
+                    <span class="stat-value" id="permanentCount">0</span>
+                </div>
+                <div class="stat">
+                    <span>Modo:</span>
+                    <span class="stat-value" id="modeStatus">Edición</span>
+                </div>
             </div>
         </div>
     </div>
@@ -491,17 +822,18 @@
                             <option value="poi">Punto de Interés</option>
                             <option value="hazard">Zona de Riesgo</option>
                             <option value="inspection">Inspección</option>
+                            <option value="cargo">Carga</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>Información / Notas</label>
-                    <textarea id="waypointNotesInput" placeholder="Agrega detalles importantes: restricciones, observaciones, coordenadas adicionales..."></textarea>
+                    <textarea id="waypointNotesInput" placeholder="Agrega detalles: restricciones, observaciones, coordenadas..."></textarea>
                 </div>
                 <div class="form-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="permanentCheckbox">
-                        <label for="permanentCheckbox" style="margin: 0; cursor: pointer;">Marcar como permanente</label>
+                        <label for="permanentCheckbox" style="margin: 0; cursor: pointer;">📌 Marcar como permanente</label>
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -512,20 +844,38 @@
         </div>
     </div>
 
+    <!-- Input oculto para importar -->
+    <input type="file" id="fileInput" accept=".json,.csv" style="display: none;">
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script>
         // Configuración del mapa
         const map = L.map('map', {
             center: [40.4168, -3.7038], // Madrid
-            zoom: 12,
-            zoomControl: true
+            zoom: 13,
+            zoomControl: true,
+            attributionControl: true
         });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
+        // Capas de mapa (satélite por defecto para ENAIRE)
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
             maxZoom: 19
-        }).addTo(map);
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 18
+        });
+
+        satelliteLayer.addTo(map);
+
+        // Capas de control
+        L.control.layers({
+            'Satélite': satelliteLayer,
+            'OSM': osmLayer
+        }, {}, { position: 'topright', collapsed: false }).addTo(map);
 
         // Estado de la aplicación
         const appState = {
@@ -533,21 +883,22 @@
             selectedWaypointId: null,
             markers: {},
             route: null,
-            addingMode: false
+            draggedMarkerId: null
         };
 
         // Cargar waypoints almacenados
         function loadWaypoints() {
-            const stored = localStorage.getItem('dronWaypoints');
+            const stored = localStorage.getItem('droneWaypoints');
             if (stored) {
                 appState.waypoints = JSON.parse(stored);
                 appState.waypoints.forEach(wp => renderWaypoint(wp));
+                updateStats();
             }
         }
 
         // Guardar waypoints en localStorage
         function saveWaypoints() {
-            localStorage.setItem('dronWaypoints', JSON.stringify(appState.waypoints));
+            localStorage.setItem('droneWaypoints', JSON.stringify(appState.waypoints));
         }
 
         // Crear ID único
@@ -563,16 +914,17 @@
                 'hazard': 'marker-hazard',
                 'poi': 'marker-poi',
                 'landing': 'marker-landing',
-                'inspection': 'marker-inspection'
+                'inspection': 'marker-inspection',
+                'cargo': 'marker-cargo'
             }[type] || 'marker-waypoint';
 
             const iconHtml = `<div class="marker-icon-custom ${iconClass}">${index}</div>`;
 
             return L.divIcon({
                 html: iconHtml,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16],
-                popupAnchor: [0, -16],
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+                popupAnchor: [0, -18],
                 className: 'custom-marker'
             });
         }
@@ -585,19 +937,52 @@
 
             const index = appState.waypoints.indexOf(waypoint) + 1;
             const marker = L.marker([waypoint.lat, waypoint.lon], {
-                icon: getMarkerIcon(waypoint.type, index)
+                icon: getMarkerIcon(waypoint.type, index),
+                draggable: true
             }).addTo(map);
 
+            const typeLabels = {
+                'start': '🚀 Inicio',
+                'waypoint': '📍 Ruta',
+                'hazard': '⚠️ Riesgo',
+                'poi': '⭐ POI',
+                'landing': '🛬 Aterrizaje',
+                'inspection': '🔍 Inspección',
+                'cargo': '📦 Carga'
+            };
+
             const popupContent = `
-                <strong>${waypoint.name}</strong><br/>
-                <small>Lat: ${waypoint.lat.toFixed(5)}</small><br/>
-                <small>Lon: ${waypoint.lon.toFixed(5)}</small><br/>
-                <small>Alt: ${waypoint.altitude}m</small><br/>
-                ${waypoint.notes ? `<p style="margin-top: 8px; font-size: 12px;">${waypoint.notes.replace(/\n/g, '<br>')}</p>` : ''}
+                <div style="min-width: 220px;">
+                    <strong>${waypoint.name}</strong><br/>
+                    <small style="color: #6b7280;">${typeLabels[waypoint.type] || waypoint.type}</small><br/>
+                    <hr style="margin: 6px 0; border-color: #1f2937;">
+                    <small>Lat: ${waypoint.lat.toFixed(5)}</small><br/>
+                    <small>Lon: ${waypoint.lon.toFixed(5)}</small><br/>
+                    <small>Alt: ${waypoint.altitude}m</small><br/>
+                    ${waypoint.notes ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1f2937; font-size: 11px;">${waypoint.notes.replace(/\n/g, '<br>')}</div>` : ''}
+                </div>
             `;
 
             marker.bindPopup(popupContent);
             marker.on('click', () => selectWaypoint(waypoint.id));
+
+            // Arrastrar marcador
+            marker.on('dragstart', () => {
+                appState.draggedMarkerId = waypoint.id;
+            });
+
+            marker.on('drag', (e) => {
+                waypoint.lat = e.target.getLatLng().lat;
+                waypoint.lon = e.target.getLatLng().lng;
+                saveWaypoints();
+                drawRoute();
+                updateStats();
+            });
+
+            marker.on('dragend', () => {
+                appState.draggedMarkerId = null;
+                updateWaypointsList();
+            });
 
             appState.markers[waypoint.id] = marker;
         }
@@ -611,7 +996,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
                         </svg>
-                        <p>Haz clic en el mapa o usa "Agregar" para crear waypoints</p>
+                        <p>Haz clic en el mapa para agregar waypoints</p>
                     </div>
                 `;
                 return;
@@ -620,28 +1005,35 @@
             list.innerHTML = appState.waypoints.map((wp, idx) => `
                 <div class="waypoint-item ${appState.selectedWaypointId === wp.id ? 'active' : ''}" onclick="selectWaypoint('${wp.id}')">
                     <div class="waypoint-header">
-                        <span class="waypoint-name">#${idx + 1} ${wp.name}</span>
-                        ${wp.permanent ? '📌' : ''}
-                        <span class="waypoint-type">${{
-                            'start': 'Inicio',
-                            'waypoint': 'Ruta',
-                            'hazard': 'Riesgo',
-                            'poi': 'POI',
-                            'landing': 'Aterrizaje',
-                            'inspection': 'Inspección'
-                        }[wp.type] || wp.type}</span>
+                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                            <div class="waypoint-number">${idx + 1}</div>
+                            <div class="waypoint-name">${wp.name}</div>
+                        </div>
+                        <div class="waypoint-badges">
+                            ${wp.permanent ? '<span class="badge permanent">📌</span>' : ''}
+                            <span class="badge">${{
+                                'start': '🚀',
+                                'waypoint': '📍',
+                                'hazard': '⚠️',
+                                'poi': '⭐',
+                                'landing': '🛬',
+                                'inspection': '🔍',
+                                'cargo': '📦'
+                            }[wp.type] || '•'}</span>
+                        </div>
                     </div>
-                    <div class="waypoint-coords">${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)} • ${wp.altitude}m</div>
-                    ${wp.notes ? `<div class="waypoint-coords" style="color: #7fb3ff; font-size: 11px; margin-bottom: 10px;">${wp.notes.substring(0, 50)}${wp.notes.length > 50 ? '...' : ''}</div>` : ''}
+                    <div class="waypoint-coords">
+                        <div><small>Lat: ${wp.lat.toFixed(5)}</small></div>
+                        <div><small>Lon: ${wp.lon.toFixed(5)}</small></div>
+                        <div style="grid-column: 1/3;"><small>Alt: ${wp.altitude}m</small></div>
+                    </div>
+                    ${wp.notes ? `<div class="waypoint-notes">${wp.notes.substring(0, 80)}${wp.notes.length > 80 ? '...' : ''}</div>` : ''}
                     <div class="waypoint-actions">
-                        <button class="btn-secondary btn-small" onclick="editWaypoint('${wp.id}')">✏️ Editar</button>
-                        <button class="btn-danger btn-small" onclick="deleteWaypoint('${wp.id}')">🗑️ Borrar</button>
+                        <button class="btn-secondary" onclick="editWaypoint('${wp.id}')">✏️ Editar</button>
+                        <button class="btn-danger" onclick="deleteWaypoint('${wp.id}')">🗑️ Borrar</button>
                     </div>
                 </div>
             `).join('');
-
-            updateStats();
-            drawRoute();
         }
 
         // Seleccionar waypoint
@@ -651,7 +1043,7 @@
             const wp = appState.waypoints.find(w => w.id === id);
             if (wp) {
                 map.setView([wp.lat, wp.lon], 15);
-                appState.markers[id].openPopup();
+                setTimeout(() => appState.markers[id]?.openPopup(), 100);
             }
         }
 
@@ -664,6 +1056,7 @@
             document.getElementById('waypointLonInput').value = lon || '';
             document.getElementById('waypointAltitudeInput').value = '0';
             document.getElementById('permanentCheckbox').checked = false;
+            modal.dataset.editingId = '';
             modal.classList.add('active');
         }
 
@@ -715,6 +1108,7 @@
             saveWaypoints();
             renderWaypoint(waypoint);
             updateWaypointsList();
+            updateStats();
             closeModal();
         });
 
@@ -729,6 +1123,7 @@
                 appState.selectedWaypointId = null;
                 saveWaypoints();
                 updateWaypointsList();
+                updateStats();
             }
         }
 
@@ -739,7 +1134,7 @@
             delete modal.dataset.editingId;
         }
 
-        // Dibujar ruta entre waypoints
+        // Dibujar ruta
         function drawRoute() {
             if (appState.route) {
                 map.removeLayer(appState.route);
@@ -750,39 +1145,193 @@
             const coords = appState.waypoints.map(wp => [wp.lat, wp.lon]);
             appState.route = L.polyline(coords, {
                 color: '#4a9eff',
-                weight: 2,
-                opacity: 0.6,
-                dashArray: '5, 5'
+                weight: 3,
+                opacity: 0.7
             }).addTo(map);
+        }
+
+        // Dibujar perfil de altitud
+        function drawAltitudeProfile() {
+            if (appState.waypoints.length === 0) return;
+
+            const svg = document.getElementById('altitudeSvg');
+            svg.innerHTML = '';
+
+            const altitudes = appState.waypoints.map(wp => wp.altitude);
+            const maxAlt = Math.max(...altitudes);
+            const minAlt = Math.min(...altitudes);
+            const range = maxAlt - minAlt || 100;
+
+            const width = svg.parentElement.offsetWidth - 2;
+            const height = 100;
+            const points = altitudes.map((alt, idx) => {
+                const x = (idx / (altitudes.length - 1 || 1)) * width;
+                const y = height - ((alt - minAlt) / range) * (height - 20) - 10;
+                return `${x},${y}`;
+            }).join(' ');
+
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            svg.setAttribute('preserveAspectRatio', 'none');
+
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('points', points);
+            polyline.setAttribute('fill', 'none');
+            polyline.setAttribute('stroke', '#4a9eff');
+            polyline.setAttribute('stroke-width', '2');
+            svg.appendChild(polyline);
+
+            // Puntos
+            altitudes.forEach((alt, idx) => {
+                const x = (idx / (altitudes.length - 1 || 1)) * width;
+                const y = height - ((alt - minAlt) / range) * (height - 20) - 10;
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', '3');
+                circle.setAttribute('fill', '#4a9eff');
+                svg.appendChild(circle);
+            });
         }
 
         // Actualizar estadísticas
         function updateStats() {
             document.getElementById('waypointCount').textContent = appState.waypoints.length;
+            const permanent = appState.waypoints.filter(wp => wp.permanent).length;
+            document.getElementById('permanentCount').textContent = permanent;
 
             if (appState.waypoints.length < 2) {
                 document.getElementById('totalDistance').textContent = '0';
+                document.getElementById('avgAltitude').textContent = '0';
+                document.getElementById('maxAltitude').textContent = '0';
                 return;
             }
 
+            // Distancia total
             let totalDist = 0;
             for (let i = 0; i < appState.waypoints.length - 1; i++) {
                 const from = turf.point([appState.waypoints[i].lon, appState.waypoints[i].lat]);
                 const to = turf.point([appState.waypoints[i + 1].lon, appState.waypoints[i + 1].lat]);
                 totalDist += turf.distance(from, to, { units: 'kilometers' });
             }
-
             document.getElementById('totalDistance').textContent = totalDist.toFixed(2);
+
+            // Altitudes
+            const altitudes = appState.waypoints.map(wp => wp.altitude);
+            const avgAlt = Math.round(altitudes.reduce((a, b) => a + b, 0) / altitudes.length);
+            const maxAlt = Math.max(...altitudes);
+
+            document.getElementById('avgAltitude').textContent = avgAlt;
+            document.getElementById('maxAltitude').textContent = maxAlt;
+
+            drawRoute();
+            drawAltitudeProfile();
         }
 
-        // Eventos de botones
+        // Exportar a JSON
+        function exportJSON() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                metadata: {
+                    totalWaypoints: appState.waypoints.length,
+                    totalDistance: document.getElementById('totalDistance').textContent,
+                    maxAltitude: document.getElementById('maxAltitude').textContent
+                },
+                waypoints: appState.waypoints
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `waypoints-${Date.now()}.json`;
+            a.click();
+        }
+
+        // Exportar a CSV
+        function exportCSV() {
+            const headers = ['#', 'Nombre', 'Latitud', 'Longitud', 'Altura (m)', 'Tipo', 'Permanente', 'Notas'];
+            const rows = appState.waypoints.map((wp, idx) => [
+                idx + 1,
+                wp.name,
+                wp.lat,
+                wp.lon,
+                wp.altitude,
+                wp.type,
+                wp.permanent ? 'Sí' : 'No',
+                wp.notes?.replace(/"/g, '""') || ''
+            ]);
+
+            const csv = [
+                headers.map(h => `"${h}"`).join(','),
+                ...rows.map(r => r.map(v => `"${v}"`).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `waypoints-${Date.now()}.csv`;
+            a.click();
+        }
+
+        // Importar desde archivo
+        function importFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    if (file.name.endsWith('.json')) {
+                        const data = JSON.parse(e.target.result);
+                        const waypoints = data.waypoints || data;
+                        appState.waypoints = waypoints;
+                    } else if (file.name.endsWith('.csv')) {
+                        const csv = e.target.result;
+                        const lines = csv.split('\n');
+                        const headers = lines[0].split(',').map(h => h.replace(/"/g, ''));
+                        appState.waypoints = lines.slice(1)
+                            .filter(line => line.trim())
+                            .map(line => {
+                                const values = line.split(',').map(v => v.replace(/"/g, ''));
+                                return {
+                                    id: generateId(),
+                                    name: values[1],
+                                    lat: parseFloat(values[2]),
+                                    lon: parseFloat(values[3]),
+                                    altitude: parseInt(values[4]) || 0,
+                                    type: values[5] || 'waypoint',
+                                    permanent: values[6] === 'Sí',
+                                    notes: values[7] || ''
+                                };
+                            });
+                    }
+                    saveWaypoints();
+                    Object.keys(appState.markers).forEach(id => {
+                        map.removeLayer(appState.markers[id]);
+                    });
+                    appState.markers = {};
+                    appState.waypoints.forEach(wp => renderWaypoint(wp));
+                    updateWaypointsList();
+                    updateStats();
+                    alert('✅ Waypoints importados correctamente');
+                } catch (err) {
+                    alert('❌ Error al importar: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Event Listeners
         document.getElementById('addWaypointBtn').addEventListener('click', () => openAddModal());
         document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        document.getElementById('exportBtn').addEventListener('click', exportJSON);
+        document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
 
-        document.getElementById('showRouteBtn').addEventListener('click', () => {
-            if (appState.waypoints.length >= 2) {
-                const bounds = L.latLngBounds(appState.waypoints.map(wp => [wp.lat, wp.lon]));
-                map.fitBounds(bounds, { padding: [100, 100] });
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                importFile(e.target.files[0]);
             }
         });
 
@@ -797,33 +1346,29 @@
                 appState.selectedWaypointId = null;
                 saveWaypoints();
                 updateWaypointsList();
+                updateStats();
             }
         });
 
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            const data = {
-                timestamp: new Date().toISOString(),
-                waypoints: appState.waypoints
-            };
-            const json = JSON.stringify(data, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `waypoints-${Date.now()}.json`;
-            a.click();
+        // Tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                e.target.classList.add('active');
+                document.getElementById(`tab-${e.target.dataset.tab}`).classList.add('active');
+            });
         });
 
         // Click en el mapa para agregar waypoint
         map.on('click', (e) => {
+            if (appState.draggedMarkerId) return;
             openAddModal(e.latlng.lat.toFixed(5), e.latlng.lng.toFixed(5));
         });
 
         // Inicializar
         loadWaypoints();
-        if (appState.waypoints.length > 0) {
-            updateWaypointsList();
-        }
+        updateStats();
     </script>
 </body>
 </html>
